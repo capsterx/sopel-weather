@@ -13,13 +13,12 @@ class WZ:
     def __init__(
             self,
             here_url,
-            here_app_id,
-            here_app_code,
+            here_api_key,
             darksky_url,
             darksky_key
     ):
 
-        self.here = here.Here(here_url, here_app_id, here_app_code)
+        self.here = here.Here(here_url, here_api_key)
         self.darksky = darksky.DarkSky(darksky_url, darksky_key)
 
     def __short(self, url):
@@ -50,32 +49,24 @@ class WZ:
       return f"{int(temp_f):d}F/{temp_c:.2f}C"
 
     def _get(self, text):
+        location, lat, lng = self.here.location(text)
 
-        location = self.here.location(text)
+        weather = self.darksky.weather(lat, lng)
+        weather = weather.json()
 
-        gps_loc = location["Location"]["NavigationPosition"][-1]
-        city = location["Location"]["Address"]["City"]
-        state = location["Location"]["Address"]["State"]
-
-        weather = self.darksky.get(
-            gps_loc['Latitude'],
-            gps_loc['Longitude']
-        )
-
-        return(city, state, weather)
+        return(location, weather)
 
     def get(self, text, kind="current", **kwargs):
-
-        city, state, weather = self._get(text)
-        return getattr(self, f"get_{kind}")(city, state, weather, **kwargs)
+        location, weather = self._get(text)
+        return getattr(self, f"get_{kind}")(location, weather, **kwargs)
         
 
-    def get_forecast(self, city, state, weather, days):
+    def get_forecast(self, location, weather, days):
         tz = weather['timezone']
         current = weather["currently"]
         forecast_data = weather["daily"]["data"]
 
-        result = f"{city}, {state} Conditions: {current['summary']} | {weather['daily']['summary']} | "
+        result = f"{location} Conditions: {current['summary']} | {weather['daily']['summary']} | "
         def f(i):
             fd = forecast_data[i]
             day = utils.unix_to_localtime(fd['time'], tz=tz, fmt='%a')
@@ -91,7 +82,7 @@ class WZ:
         result += ' | '.join([f(x) for x in range(0, days)])
         return result
 
-    def get_current(self, city, state, weather):
+    def get_current(self, location, weather):
         tz = weather['timezone']
         current = weather["currently"]
         forecast_data = weather["daily"]["data"]
@@ -103,7 +94,7 @@ class WZ:
         high = self.__both(forecast_data[0]['temperatureHigh'])
         low = self.__both(forecast_data[0]['temperatureLow'])
         result = (
-            f"{city}, {state} Conditions: {current['summary']} | "
+            f"{location} Conditions: {current['summary']} | "
             f"Temp: {temp}, Feels-Like: {feel} | "
             f"UV Index: {self.__uv_rating(current['uvIndex'])} | "
             f"{self.__high()}High: {high}, {self.__low()}Low: {low} | "
@@ -119,9 +110,9 @@ class WZ:
             result += ', '.join([x['title'] + ' ' + self.__short(x['uri']) for x in alerts])
         return result
 
-    def get_hourly(self, city, state, weather, hours):
+    def get_hourly(self, location, weather, hours):
         hourly = weather['hourly']['data']
-        result = f"{city}, {state} | {weather['hourly']['summary']} | "
+        result = f"{location} | {weather['hourly']['summary']} | "
         tz = weather['timezone']
 
         def h(x):
@@ -137,8 +128,8 @@ class WZ:
         result += ' | '.join([h(hourly[x]) for x in range(0, hours)])
         return result
 
-    def get_rain(self, city, state, weather):
-        result = f"{city}, {state} | {weather['hourly']['summary']} | "
+    def get_rain(self, loation, weather):
+        result = f"{location} | {weather['hourly']['summary']} | "
         hourly = weather['hourly']['data']
         groups = [0, 1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 101]
         def get_group(percip):

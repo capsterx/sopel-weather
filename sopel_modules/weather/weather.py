@@ -1,6 +1,5 @@
 from sopel.config.types import StaticSection, ChoiceAttribute, ValidatedAttribute
 from sopel.module import commands, example
-from sopel import web
 from .wz import WZ
 from .utils import geoip_lookup
 
@@ -9,16 +8,14 @@ import socket
 
 class WeatherSection(StaticSection):
     here_url = ValidatedAttribute('here_url', default="https://geocoder.api.here.com/6.2/geocode.json")
-    here_app_id = ValidatedAttribute('here_app_id', default=None)
-    here_app_code = ValidatedAttribute('here_app_code', default=None)
+    here_api_key = ValidatedAttribute('here_api_key', default=None)
     darksky_url = ValidatedAttribute("darksky_url", default="https://api.darksky.net/forecast")
     darksky_key = ValidatedAttribute("darksky_key", default=None)
 
 def configure(config):
     config.define_section('weather', WeatherSection, validate=False)
     config.weather.configure_setting('here_url', 'here.com api url')
-    config.weather.configure_setting('here_app_id', 'here.com app id')
-    config.weather.configure_setting('here_app_code', 'here.com app code')
+    config.weather.configure_setting('here_api_key', 'here.com api key')
     config.weather.configure_setting('darksky_url', 'darksky.com api url')
     config.weather.configure_setting('darksky_key', 'darksky.com id')
 
@@ -29,9 +26,7 @@ def check(bot, trigger):
     msg = None
     if not bot.config.weather.here_url:
         msg = 'Weather API here.com url not configured.'
-    elif not bot.config.weather.here_app_id:
-        msg = 'Weather API here.com app id not configured.'
-    elif not bot.config.weather.here_app_code:
+    elif not bot.config.weather.here_api_key:
         msg = 'Weather API here.com app code not configured.'
     elif not bot.config.weather.darksky_url:
         msg = 'Weather API darksky.com url not configured.'
@@ -44,8 +39,7 @@ def weather(bot, trigger, **kwargs):
     if not msg:
         wz = WZ(
             bot.config.weather.here_url,
-            bot.config.weather.here_app_id,
-            bot.config.weather.here_app_code,
+            bot.config.weather.here_api_key,
             bot.config.weather.darksky_url,
             bot.config.weather.darksky_key
         )
